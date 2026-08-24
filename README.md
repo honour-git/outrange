@@ -16,6 +16,18 @@ The solution combines:
 
 ---
 
+## Dependencies:
+- Python 3.12.3
+- pip 24.0
+
+### External Libraries:
+Run the following command in your terminal in the root of this repository:
+```bash
+pip install -r requirements.txt
+```
+
+---
+
 ## Project Structure
 
 ```text
