@@ -17,7 +17,10 @@ def main():
     y_train = train_df[target_cols]
     X_test = extract_features(test_df)
 
-    print("\nTraining LightGBM baseline...")
+    print("Training LightGBM baseline...")
+    models, oof_predictions, cv_scores = train_evaluate_lgbm(X_train, y_train)
+
+    print("\nGenerating submission predictions...")
     submission = pd.DataFrame({"track_id": test_df["track_id"]})
     for target in target_cols:
         submission[target] = models[target].predict(X_test)
