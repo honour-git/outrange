@@ -18,7 +18,7 @@ def extract_features(df: pd.DataFrame):
     # Launch elevation and azimuth direction
     features["launch_elevation_rad"] = np.arctan2(df["launch_vz"], np.sqrt(df["launch_vx"] ** 2 + df["launch_vy"] ** 2))
 
-    features["launch_azimuth_rad"] = np.arctan2(df["launch_vy"], df["launch_vz"])
+    features["launch_azimuth_rad"] = np.arctan2(df["launch_vy"], df["launch_vx"])
 
     # Segment by segment interval velocities and time deltas
     cps = [("launch", 0), ("cp1", 1), ("cp2", 2), ("cp3", 3), ("cp4", 4)]
@@ -53,7 +53,7 @@ def extract_features(df: pd.DataFrame):
     features["net_v_magnitude_avg"] = np.sqrt(net_dx**2 + net_dy**2 + net_dz**2) / net_dt
 
     # Deceleration and vertical/horizontal trajectory ratios
-    features["speed_loss"] = features["v_mag_launch_to_cp1"] - features["v_mag_cp3_to_cp4"]
+    features["speed_loss"] = features["v_magnitude_launch_to_cp1"] - features["v_magnitude_cp3_to_cp4"]
     features["decel_rate"] = features["speed_loss"] / net_dt
 
     features["net_climb_ratio"] = net_dz / net_dx
