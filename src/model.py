@@ -1,0 +1,62 @@
+import lightgbm as lgb
+import numpy as np
+import pandas as pd
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import KFold
+
+def train_evaluate_lgbm(X: pd.DataFrame, y: pd.DataFrame, n_splits = 5) -> tuple:
+    """Trains LightGBM regressors across target columns using K-Fold CV.
+
+    Returns:
+        models (dict): Trained model per target column (trained on 100% data)
+        oof_predictions (pd.DataFrame): Out-of-fold predictions
+        cv_scores (dict): RMSE per target column
+    """
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    target_cols = y.columns.to_list()
+
+    oof_predictions = pd.DataFrame(0.0, index=X.index, columns=target_cols)
+    cv_scores = {}
+
+    print(f"Running {n_splits}-Fold cross validation...")
+
+    for target in target_cols:
+        target_oof = np.zeros(len(X))
+
+        for fold, (train_idx, val_idx) in enumerate(kf.split(X, y)):
+            X_train, y_train = X.iloc[train_idx], y[target].iloc[train_idx]
+            X_val, y_val = X.iloc[val_idx], y[target].iloc[val_idx]
+
+            model = lgb.LGBMRegressor(
+                n_estimators=300,
+                learning_rate=0.03,
+                max_depth=5,
+                num_leaves=15,
+                random_state=(42 + fold),
+                verbosity=-1,
+            )
+
+            model.fit(X_train, y_train, eval_set=[(X_val, y_val)], callbacks=[lgb.early_stopping(50, verbose=False)])
+
+            target_oof[val_idx] = model.predict(X_val)
+
+        oof_predictions[target] = target_oof
+        rmse = np.sqrt(mean_squared_error(y[target], target_oof))
+        cv_scores[target] = rmse
+        print(f"Target: {target:20s} | OOF RMSE: {rmse:.4f}")
+
+    # Retrain final models on entire data set for test set predictions
+    final_models = {}
+    for target in target_cols:
+        model = lgb.LGBMRegressor(
+            n_estimators=200,
+            learning_rate=0.03,
+            max_depth=5,
+            num_leaves=15,
+            random_state=42,
+            verbosity=-1,
+        )
+        model.fit(X, y[target])
+        final_models[target] = model
+
+    return final_models, oof_predictions, cv_scores
