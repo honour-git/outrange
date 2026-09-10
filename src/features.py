@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from physics import project_trajectory
+from src.physics import project_trajectory
 
 def extract_features(df: pd.DataFrame):
     """Accepts a raw DataFrame and returns a transformed DataFrame

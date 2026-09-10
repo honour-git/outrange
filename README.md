@@ -28,6 +28,16 @@ pip install -r requirements.txt
 
 ---
 
+## Usage
+Run the following in your terminal within the root of this repositiory:
+```bash
+python train.py
+```
+
+Note that this will take a few seconds while it is training the models.
+
+---
+
 ## Project Structure
 
 ```text
