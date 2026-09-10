@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from src.features import extract_features, get_target_columns
 from src.models import train_evaluate_lgbm
+from src.physics import project_trajectory
 
 def main():
     os.makedirs("outputs", exist_ok=True)
