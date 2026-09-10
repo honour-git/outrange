@@ -93,6 +93,12 @@ def extract_features(df: pd.DataFrame):
     features["cp4_vs_phys_x_diff"] = df["cp4_x"] - phys_df["apex_x"]
     features["cp4_vs_phys_z_diff"] = df["cp4_z"] - phys_df["apex_z"]
 
+
+    # Lift/Drag ratio proxy
+    features["observed_lift_proxy"] = (df["cp4_z"] - df["launch_z"]) / features["net_dt_total"]
+    features["observed_drag_proxy"] = (features["v_magnitude_launch_to_cp1"] - features["v_magnitude_cp3_to_cp4"]) / features["net_dt_total"]
+    features["lift_to_drag_ratio"] = features["observed_lift_proxy"] / features["observed_drag_proxy"]
+
     return features
 
 def get_target_columns():

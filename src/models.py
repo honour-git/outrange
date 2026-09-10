@@ -34,12 +34,14 @@ def train_evaluate_lgbm(X: pd.DataFrame, y: pd.DataFrame, n_splits = 5) -> tuple
             X_val, y_val = X.iloc[val_idx], y[target].iloc[val_idx]
 
             model = lgb.LGBMRegressor(
-                n_estimators=300,
-                learning_rate=0.03,
+                n_estimators=1000,
+                learning_rate=0.01,
                 max_depth=5,
                 num_leaves=15,
                 random_state=(42 + fold),
                 verbosity=-1,
+                colsample_bytree=0.8,
+                subsample=0.8,
             )
 
             model.fit(X_train, y_train, eval_set=[(X_val, y_val)], callbacks=[lgb.early_stopping(50, verbose=False)])
