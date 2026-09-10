@@ -8,6 +8,45 @@ AREA = np.pi * (RADIUS ** 2) # m^2
 DENSITY = 1.225  # Air density kg/m^3
 G = 9.82 # m/s^2
 
+def estimate_cd_cl(launch_state, checkpoints_xyzt):
+    """
+        Estimates and fits drag and lift coefficients for a single shot using
+        provided radar checkpoint observations
+    """
+    def loss_func(coefficient_vals):
+        """Returns the relative error of coefficient estimates"""
+        Cd_val, Cl_val = coefficient_vals
+
+        # Solve the ode up until cp4
+        max_t = checkpoints_xyzt[-1][3]
+        solution = solve_ivp(
+            fun=ball_flight_ode,
+            t_span=(0, max_t),
+            y0=launch_state,
+            args=(Cd_val, Cl_val, None),
+            max_step=0.2,
+        )
+
+        error = 0.0
+        for cp_x, cp_y, cp_z, cp_t in checkpoints_xyzt:
+            # Interpolate simulated position at checkpoint time cp_t
+            sim_x = np.interp(cp_t, solution.t, solution.y[0])
+            sim_y = np.interp(cp_t, solution.t, solution.y[1])
+            sim_z = np.interp(cp_t, solution.t, solution.y[2])
+
+            error += (sim_x - cp_x) ** 2 + (sim_y - cp_y) ** 2 + (sim_z - cp_z) ** 2
+
+        return np.sqrt(error / len(checkpoints_xyzt))
+    
+    result = minimize(
+        loss_func,
+        x0=[0.25, 0.15],
+        bounds=[(0.1, 0.5), (0.01, 0.4)],
+        method="L-BFGS-B",
+    )
+    return result.x[0], result.x[1]
+
+
 def ball_flight_ode(t, state, Cd, Cl, spin_axis):
     """Calculates the 3D equations of motion for a golf ball in flight"""
     x, y, z, vx, vy, vz = state
