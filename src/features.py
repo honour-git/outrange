@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from physics import project_trajectory
 
 def extract_features(df: pd.DataFrame):
     """Accepts a raw DataFrame and returns a transformed DataFrame
@@ -58,6 +59,39 @@ def extract_features(df: pd.DataFrame):
 
     features["net_climb_ratio"] = net_dz / net_dx
     features["net_drift_ratio"] = net_dy / net_dx
+
+
+    # Physics model predictions (ODE simulations)
+    phys_results = []
+    for idx, row in df.iterrows():
+        launch_state = [
+            row["launch_x"],
+            row["launch_y"],
+            row["launch_z"],
+            row["launch_vx"],
+            row["launch_vy"],
+            row["launch_vz"],
+        ]
+
+        # Simulate trajectory using baseline drag and lift coefficients
+        sim = project_trajectory(launch_state=launch_state, Cd=0.25, Cl=0.15)
+        phys_results.append(sim)
+
+    phys_df = pd.DataFrame(phys_results, index=df.index)
+
+    # Add physics outputs as features for LightGBM
+    features["phys_apex_x"] = phys_df["apex_x"]
+    features["phys_apex_y"] = phys_df["apex_y"]
+    features["phys_apex_z"] = phys_df["apex_z"]
+    features["phys_apex_t"] = phys_df["apex_t"]
+
+    features["phys_landing_x"] = phys_df["landing_x"]
+    features["phys_landing_y"] = phys_df["landing_y"]
+    features["phys_landing_t"] = phys_df["landing_t"]
+
+    # Differences between physical baseline prediction and observed CP4 position
+    features["cp4_vs_phys_x_diff"] = df["cp4_x"] - phys_df["apex_x"]
+    features["cp4_vs_phys_z_diff"] = df["cp4_z"] - phys_df["apex_z"]
 
     return features
 
