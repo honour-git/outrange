@@ -99,6 +99,23 @@ def extract_features(df: pd.DataFrame):
     features["observed_drag_proxy"] = (features["v_magnitude_launch_to_cp1"] - features["v_magnitude_cp3_to_cp4"]) / features["net_dt_total"]
     features["lift_to_drag_ratio"] = features["observed_lift_proxy"] / features["observed_drag_proxy"]
 
+
+    # Magnus Force / Lift Acceleration Proxy
+    net_v = features["net_v_magnitude_avg"]
+
+    # Deviation from parabolic vacuum trajectory
+    vacuum_dz = (df["launch_vz"] * df["cp4_t"]) - (0.5 * 9.81 * (df["cp4_t"] ** 2))
+    actual_dz = df["cp4_z"] - df["launch_z"]
+    features["lift_curvature_delta"] = actual_dz - vacuum_dz
+
+    # Estimated Magnus lift proxy
+    features["magnus_cl_proxy"] = (2 * 0.04593 * features["lift_curvature_delta"]) / (
+        1.225 * np.pi * (0.021335**2) * (net_v**2) * (df["cp4_t"] ** 2)
+    )
+
+    # Inferred spin rate physical approximation (RPM)
+    features["estimated_spin_rpm_proxy"] = features["magnus_cl_proxy"] * net_v * 60.0
+
     return features
 
 def get_target_columns():
