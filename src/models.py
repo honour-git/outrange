@@ -29,15 +29,18 @@ def train_evaluate_lgbm(X: pd.DataFrame, y: pd.DataFrame, n_splits = 5) -> tuple
         target_oof = np.zeros(len(X))
         best_iterations = []
 
+        is_spin = (target == "launch_spin_rate")
+
         for fold, (train_idx, val_idx) in enumerate(kf.split(X, y)):
             X_train, y_train = X.iloc[train_idx], y[target].iloc[train_idx]
             X_val, y_val = X.iloc[val_idx], y[target].iloc[val_idx]
 
             model = lgb.LGBMRegressor(
-                n_estimators=1000,
-                learning_rate=0.01,
-                max_depth=5,
-                num_leaves=15,
+                n_estimators=1500 if is_spin else 1000,
+                learning_rate=0.005 if is_spin else 0.01,
+                max_depth=7 if is_spin else 5,
+                num_leaves=31 if is_spin else 15,
+                min_child_samples=10 if is_spin else 20,
                 random_state=(42 + fold),
                 verbosity=-1,
                 colsample_bytree=0.8,

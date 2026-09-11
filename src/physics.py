@@ -13,38 +13,33 @@ def estimate_cd_cl(launch_state, checkpoints_xyzt):
         Estimates and fits drag and lift coefficients for a single shot using
         provided radar checkpoint observations
     """
-    def loss_func(coefficient_vals):
-        """Returns the relative error of coefficient estimates"""
-        Cd_val, Cl_val = coefficient_vals
+    v0_x, v0_y, v0_z = (launch_state[3], launch_state[4], launch_state[5])
+    v0 = np.sqrt(v0_x**2 + v0_y**2 + v0_z**2)
 
-        # Solve the ode up until cp4
-        max_t = checkpoints_xyzt[-1][3]
-        solution = solve_ivp(
-            fun=ball_flight_ode,
-            t_span=(0, max_t),
-            y0=launch_state,
-            args=(Cd_val, Cl_val, None),
-            max_step=0.2,
-        )
+    if v0 == 0:
+        return 0.25, 0.15
 
-        error = 0.0
-        for cp_x, cp_y, cp_z, cp_t in checkpoints_xyzt:
-            # Interpolate simulated position at checkpoint time cp_t
-            sim_x = np.interp(cp_t, solution.t, solution.y[0])
-            sim_y = np.interp(cp_t, solution.t, solution.y[1])
-            sim_z = np.interp(cp_t, solution.t, solution.y[2])
+    # Target the last radar checkpoint (cp4)
+    cp4_x, cp4_y, cp4_z, cp4_t = checkpoints_xyzt[-1]
+    if cp4_t == 0:
+        return 0.25, 0.15
 
-            error += (sim_x - cp_x) ** 2 + (sim_y - cp_y) ** 2 + (sim_z - cp_z) ** 2
+    # Observed average accelerations across flight path
+    ax_obs = 2 * (cp4_x - launch_state[0] - v0_x * cp4_t) / (cp4_t ** 2)
+    ay_obs = 2 * (cp4_y - launch_state[1] - v0_y * cp4_t) / (cp4_t ** 2)
+    az_obs = 2 * (cp4_z - launch_state[2] - v0_z * cp4_t) / (cp4_t ** 2)
 
-        return np.sqrt(error / len(checkpoints_xyzt))
-    
-    result = minimize(
-        loss_func,
-        x0=[0.25, 0.15],
-        bounds=[(0.1, 0.5), (0.01, 0.4)],
-        method="L-BFGS-B",
-    )
-    return result.x[0], result.x[1]
+    # Invert total drag force
+    a_drag_obs = np.sqrt((ax_obs ** 2) + (ay_obs ** 2) + ((az_obs + G) ** 2))
+    q = 0.5 * DENSITY * AREA * (v0 ** 2)
+
+    cd_est = np.clip((MASS * a_drag_obs) / q, 0.10, 0.50)
+
+    # Invert vertical Magnus lift acceleration
+    az_lift_est = max(0.0, az_obs + G)
+    cl_est = np.clip((MASS * az_lift_est) / q, 0.01, 0.40)
+
+    return float(cd_est), float(cl_est)
 
 
 def ball_flight_ode(t, state, Cd, Cl, spin_axis):
