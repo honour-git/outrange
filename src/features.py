@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from src.physics import project_trajectory
+from src.physics import project_trajectory, estimate_cd_cl
 
 def extract_features(df: pd.DataFrame):
     """Accepts a raw DataFrame and returns a transformed DataFrame
@@ -10,7 +10,7 @@ def extract_features(df: pd.DataFrame):
     """
     features = pd.DataFrame(index=df.index)
 
-    # Launch kinematics and angles
+    # Launch kinematics
     features["launch_vx"] = df["launch_vx"]
     features["launch_vy"] = df["launch_vy"]
     features["launch_vz"] = df["launch_vz"]
@@ -61,8 +61,11 @@ def extract_features(df: pd.DataFrame):
     features["net_drift_ratio"] = net_dy / net_dx
 
 
-    # Physics model predictions (ODE simulations)
+    # ODE trajectory projections and aerodynamic parameter estimations (per-shot)
     phys_results = []
+    fitted_cds = []
+    fitted_cls = []
+
     for idx, row in df.iterrows():
         launch_state = [
             row["launch_x"],
@@ -73,8 +76,20 @@ def extract_features(df: pd.DataFrame):
             row["launch_vz"],
         ]
 
+        checkpoints_xyzt = [
+            (row["cp1_x"], row["cp1_y"], row["cp1_z"], row["cp1_t"]),
+            (row["cp2_x"], row["cp2_y"], row["cp2_z"], row["cp2_t"]),
+            (row["cp3_x"], row["cp3_y"], row["cp3_z"], row["cp3_t"]),
+            (row["cp4_x"], row["cp4_y"], row["cp4_z"], row["cp4_t"]),
+        ]
+
+        # Estimate Cd and Cl from provided checkpoint data
+        cd_est, cl_est = estimate_cd_cl(launch_state, checkpoints_xyzt)
+        fitted_cds.append(cd_est)
+        fitted_cls.append(cl_est)
+
         # Simulate trajectory using baseline drag and lift coefficients
-        sim = project_trajectory(launch_state=launch_state, Cd=0.25, Cl=0.15)
+        sim = project_trajectory(launch_state=launch_state, Cd=cd_est, Cl=cl_est)
         phys_results.append(sim)
 
     phys_df = pd.DataFrame(phys_results, index=df.index)
