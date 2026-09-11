@@ -22,12 +22,12 @@ def train_evaluate_lgbm(X: pd.DataFrame, y: pd.DataFrame, n_splits = 5) -> tuple
 
     oof_predictions = pd.DataFrame(0.0, index=X.index, columns=target_cols)
     cv_scores = {}
-    final_models = {}
+    fold_models_dict = {}
 
     print(f"Running {n_splits}-Fold cross validation...")
     for target in target_cols:
         target_oof = np.zeros(len(X))
-        best_iterations = []
+        fold_models = []
 
         is_spin = (target == "launch_spin_rate")
 
@@ -36,15 +36,15 @@ def train_evaluate_lgbm(X: pd.DataFrame, y: pd.DataFrame, n_splits = 5) -> tuple
             X_val, y_val = X.iloc[val_idx], y[target].iloc[val_idx]
 
             model = lgb.LGBMRegressor(
-                n_estimators=1500 if is_spin else 1000,
-                learning_rate=0.008 if is_spin else 0.02,
+                n_estimators=1500 if is_spin else 1200,
+                learning_rate=0.008 if is_spin else 0.015,
                 max_depth=4 if is_spin else 5,
                 num_leaves=12 if is_spin else 15,
                 min_child_samples=25,
                 colsample_bytree=0.6 if is_spin else 0.8,
                 subsample=0.8,
-                reg_alpha=0.5 if is_spin else 0.0,
-                reg_lambda=1.0 if is_spin else 0.0,
+                reg_alpha=0.5 if is_spin else 0.1,
+                reg_lambda=1.0 if is_spin else 0.1,
                 random_state=(42 + fold),
                 verbosity=-1,
             )
@@ -52,26 +52,14 @@ def train_evaluate_lgbm(X: pd.DataFrame, y: pd.DataFrame, n_splits = 5) -> tuple
             model.fit(X_train, y_train, eval_set=[(X_val, y_val)], callbacks=[lgb.early_stopping(50, verbose=False)])
 
             target_oof[val_idx] = model.predict(X_val)
-            best_iterations.append(model.best_iteration_)
+            fold_models.append(model)
 
         oof_predictions[target] = target_oof
         rmse = np.sqrt(mean_squared_error(y[target], target_oof))
         cv_scores[target] = rmse
         print(f"Target: {target:20s} | OOF RMSE: {rmse:.4f}")
 
-        # Capture average best_iteration per target from CV folds
-        avg_best_iteration = int(np.mean(best_iterations))
+        fold_models_dict[target] = fold_models
 
-        # Retrain final models on entire data set for test set predictions
-        final_model = lgb.LGBMRegressor(
-            n_estimators=avg_best_iteration,
-            learning_rate=0.03,
-            max_depth=5,
-            num_leaves=15,
-            random_state=42,
-            verbosity=-1,
-        )
-        final_model.fit(X, y[target])
-        final_models[target] = final_model
 
-    return final_models, oof_predictions, cv_scores
+    return fold_models_dict, oof_predictions, cv_scores
