@@ -157,6 +157,17 @@ def extract_features(df: pd.DataFrame):
     # Inferred spin rate physical approximation (RPM)
     features["estimated_spin_rpm_proxy"] = np.clip(features["est_cl"] * net_v * 120.0, 500.0, 12000.0)
 
+    # Launch energy & loft interactions
+    features["launch_speed_elevation_prod"] = (
+        features["launch_v_total"] * features["launch_elevation_rad"]
+    )
+    features["launch_kinetic_energy"] = 0.5 * 0.04593 * (features["launch_v_total"] ** 2)
+    
+    # Specific lift power proxy
+    features["lift_power_proxy"] = (
+        features["est_cl"] * features["launch_kinetic_energy"]
+    )
+
     return features
 
 def get_target_columns():
