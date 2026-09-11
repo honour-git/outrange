@@ -36,17 +36,17 @@ def train_evaluate_lgbm(X: pd.DataFrame, y: pd.DataFrame, n_splits = 5) -> tuple
             X_val, y_val = X.iloc[val_idx], y[target].iloc[val_idx]
 
             model = lgb.LGBMRegressor(
-                n_estimators=1000,
-                learning_rate=0.01 if is_spin else 0.02,
-                max_depth=5,
-                num_leaves=15,
-                min_child_samples=30 if is_spin else 20,
-                reg_alpha=1.0 if is_spin else 0.0,
+                n_estimators=1500 if is_spin else 1000,
+                learning_rate=0.008 if is_spin else 0.02,
+                max_depth=4 if is_spin else 5,
+                num_leaves=12 if is_spin else 15,
+                min_child_samples=25,
+                colsample_bytree=0.6 if is_spin else 0.8,
+                subsample=0.8,
+                reg_alpha=0.5 if is_spin else 0.0,
                 reg_lambda=1.0 if is_spin else 0.0,
                 random_state=(42 + fold),
                 verbosity=-1,
-                colsample_bytree=0.8,
-                subsample=0.8,
             )
 
             model.fit(X_train, y_train, eval_set=[(X_val, y_val)], callbacks=[lgb.early_stopping(50, verbose=False)])

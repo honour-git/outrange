@@ -41,6 +41,26 @@ def extract_features(df: pd.DataFrame):
         features[f"vz_{p1}_to_{p2}"] = dz / dt
         features[f"v_magnitude_{p1}_to_{p2}"] = np.sqrt(dx**2 + dy**2 + dz**2) / dt
 
+
+    # Checkpoint-by-checkpoint acceleration derivatives (Curvature change)
+    features["ax_cp1_cp2"] = (
+        features["vx_cp1_to_cp2"] - features["vx_launch_to_cp1"]
+    ) / features["dt_cp1_to_cp2"]
+    features["az_cp1_cp2"] = (
+        features["vz_cp1_to_cp2"] - features["vz_launch_to_cp1"]
+    ) / features["dt_cp1_to_cp2"]
+
+    features["ax_cp3_cp4"] = (
+        features["vx_cp3_to_cp4"] - features["vx_cp2_to_cp3"]
+    ) / features["dt_cp3_to_cp4"]
+    features["az_cp3_cp4"] = (
+        features["vz_cp3_to_cp4"] - features["vz_cp2_to_cp3"]
+    ) / features["dt_cp3_to_cp4"]
+
+    # Vertical lift decay rate (Spin decay proxy)
+    features["lift_decay_rate"] = features["az_cp3_cp4"] - features["az_cp1_cp2"]
+
+
     # Overall features ( Launch -> cp4 / 60m)
     net_dt = df["cp4_t"]
     net_dx = df["cp4_x"] - df["launch_x"]
