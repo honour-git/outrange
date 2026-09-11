@@ -92,6 +92,9 @@ def extract_features(df: pd.DataFrame):
         sim = project_trajectory(launch_state=launch_state, Cd=cd_est, Cl=cl_est)
         phys_results.append(sim)
 
+    features["est_cd"] = fitted_cds
+    features["est_cl"] = fitted_cls
+
     phys_df = pd.DataFrame(phys_results, index=df.index)
 
     # Add physics outputs as features for LightGBM
@@ -115,7 +118,7 @@ def extract_features(df: pd.DataFrame):
     features["lift_to_drag_ratio"] = features["observed_lift_proxy"] / features["observed_drag_proxy"]
 
 
-    # Magnus Force / Lift Acceleration Proxy
+    # Aerodynamic Proxy Features
     net_v = features["net_v_magnitude_avg"]
 
     # Deviation from parabolic vacuum trajectory
@@ -124,12 +127,15 @@ def extract_features(df: pd.DataFrame):
     features["lift_curvature_delta"] = actual_dz - vacuum_dz
 
     # Estimated Magnus lift proxy
-    features["magnus_cl_proxy"] = (2 * 0.04593 * features["lift_curvature_delta"]) / (
-        1.225 * np.pi * (0.021335**2) * (net_v**2) * (df["cp4_t"] ** 2)
+    features["magnus_cl_proxy"] = np.clip(
+        (2 * 0.04593 * features["lift_curvature_delta"])
+        / (1.225 * np.pi * (0.021335 ** 2) * (net_v ** 2) * (df["cp4_t"] ** 2)),
+        -0.5,
+        1.0,
     )
 
     # Inferred spin rate physical approximation (RPM)
-    features["estimated_spin_rpm_proxy"] = features["magnus_cl_proxy"] * net_v * 60.0
+    features["estimated_spin_rpm_proxy"] = np.clip(features["est_cl"] * net_v * 120.0, 500.0, 12000.0)
 
     return features
 
